@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NCC Store</title>
+  <!-- Link external CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="logo">NCC Store</div>
+    <div class="nav-links">
+      <a href="#products">Products</a>
+      <a href="#cart">Cart</a>
+      <a href="#checkout">Checkout</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero">
+    <h1>Welcome to NCC Store</h1>
+    <p>Your one-stop shop for all NCC essentials</p>
+  </header>
+
+  <!-- Products Section -->
+  <section id="products" class="products">
+    <h2>Products</h2>
+    <div class="product-list" id="product-list"></div>
+  </section>
+
+  <!-- Cart Section -->
+  <section id="cart" class="cart">
+    <h2>Your Cart</h2>
+    <div id="cart-items"></div>
+    <p>Total: ₹<span id="cart-total">0</span></p>
+    <button class="btn" onclick="checkout()">Proceed to Checkout</button>
+  </section>
+
+  <!-- Checkout Section -->
+  <section id="checkout" class="checkout">
+    <h2>Checkout</h2>
+    <div id="checkout-form"></div>
+  </section>
+
+  <!-- Payment Modal -->
+  <div id="paymentModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h2>UPI Payment</h2>
+      <p>Scan the QR code below or pay using UPI ID:</p>
+      <p><strong>UPI ID:</strong> nccstore@upi</p>
+      <img src="images/upi_qr.png" alt="UPI QR Code" class="qr">
+      <input type="text" id="txnId" placeholder="Enter Transaction ID" class="input">
+      <button class="btn" onclick="confirmPayment()">Confirm Payment</button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>&copy; 2025 NCC Store. All Rights Reserved.</p>
+  </footer>
+
+  <!-- Link external JS -->
+  <script src="script.js"></script>
+</body>
+</html>
