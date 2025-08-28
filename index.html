@@ -1,0 +1,590 @@
+<!--
+  NCC Store - Single-file E‑commerce Template
+  -------------------------------------------------
+  This file contains HTML + CSS + JS for a small storefront.
+  • All major sections have HTML comments explaining their purpose.
+  • All JS functions include comments describing what they do.
+  • Product images use a local path (images/<product-id>.jpg). Each <img> tag
+    has a nearby HTML comment with the product name so you can replace the
+    src with local images easily.
+  • UPI payment is implemented as a simulated flow: it shows a UPI ID / QR
+    placeholder and requires you to confirm payment (enter TXN id) to finish
+    the order. Replace this flow with a real gateway later.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NCC Store – Lightweight E‑commerce</title>
+  <meta name="description" content="NCC Store demo - single file template. Comments added for each part." />
+  <style>
+    /* -------------------------------------------------
+       CSS VARS & RESET
+       ------------------------------------------------- */
+    :root{--brand:#0b6b3a;--brand-dark:#085f31;--bg:#f6f8f9;--card:#ffffff;--muted:#6b7280}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#111}
+    img{max-width:100%;display:block}
+    .container{max-width:1100px;margin:0 auto;padding:0 16px}
+
+    /* -------------------------------------------------
+       NAVBAR
+       ------------------------------------------------- */
+    .nav{position:sticky;top:0;background:#fff;border-bottom:1px solid #e6eef0;z-index:40}
+    .nav-inner{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 0}
+    .brand{font-weight:800;color:var(--brand);font-size:20px}
+    .input{border:1px solid #e6eef0;padding:8px 12px;border-radius:10px;min-width:220px}
+    .btn{background:var(--brand);color:#fff;border:0;padding:9px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+    .btn.secondary{background:#111;color:#fff}
+    .icon-btn{background:#fff;border:1px solid #e6eef0;padding:9px;border-radius:10px;cursor:pointer}
+    .badge{background:var(--brand);color:#fff;border-radius:999px;padding:2px 6px;font-size:12px;margin-left:8px}
+
+    /* -------------------------------------------------
+       HERO
+       ------------------------------------------------- */
+    .hero{background:#e8f7ec;border-bottom:1px solid #daf0dd;padding:28px 0}
+    .hero-inner{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:center}
+    .hero h1{margin:0 0 8px;font-size:28px}
+    .hero p{margin:0;color:#0f5132}
+
+    /* -------------------------------------------------
+       CATALOG GRID
+       ------------------------------------------------- */
+    .toolbar{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
+    .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+    @media (max-width:1000px){.grid{grid-template-columns:repeat(3,1fr)} .hero-inner{grid-template-columns:1fr}}
+    @media (max-width:700px){.grid{grid-template-columns:repeat(2,1fr)} .input{display:none}}
+    @media (max-width:460px){.grid{grid-template-columns:1fr}}
+
+    .card{background:var(--card);border-radius:12px;border:1px solid #eff3f4;overflow:hidden;display:flex;flex-direction:column}
+    .card-body{padding:12px}
+    .title{font-weight:700;margin:6px 0}
+    .price{font-weight:800}
+    .row{display:flex;justify-content:space-between;align-items:center}
+
+    /* -------------------------------------------------
+       CART DRAWER
+       ------------------------------------------------- */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:60}
+    .drawer{position:fixed;top:0;right:-440px;width:440px;max-width:100%;height:100dvh;background:#fff;z-index:70;box-shadow:-8px 0 32px rgba(0,0,0,.12);transition:right .25s}
+    .drawer.open{right:0}
+    .drawer header{padding:14px;border-bottom:1px solid #eef3f4;display:flex;justify-content:space-between;align-items:center}
+    .drawer .content{padding:12px;overflow:auto;flex:1}
+    .cart-item{display:grid;grid-template-columns:80px 1fr auto;gap:10px;padding:10px 0;border-bottom:1px solid #f3f6f7}
+    .qty{display:flex;border:1px solid #eef3f4;border-radius:10px;overflow:hidden}
+    .qty button{background:#fafafa;border:0;padding:6px 8px;cursor:pointer}
+    .qty input{width:40px;text-align:center;border:0;padding:6px}
+    .drawer footer{position:sticky;bottom:0;background:#fff;padding:12px;border-top:1px solid #eef3f4}
+
+    /* -------------------------------------------------
+       MODAL & TOAST
+       ------------------------------------------------- */
+    .modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.45);z-index:80;padding:12px}
+    .modal.show{display:grid}
+    .modal-card{background:#fff;border-radius:12px;max-width:720px;width:100%;overflow:hidden}
+    .modal-body{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}
+    @media (max-width:720px){.modal-body{grid-template-columns:1fr}}
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:#111;color:#fff;padding:8px 12px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s}
+    .toast.show{opacity:1}
+
+    /* -------------------------------------------------
+       CHECKOUT FORM
+       ------------------------------------------------- */
+    .checkout{display:none;padding:12px;background:#fff;border:1px solid #eef3f4;border-radius:12px;margin:16px 0}
+    .field{border:1px solid #eef3f4;padding:8px 10px;border-radius:8px;width:100%}
+
+    footer.site{background:#0b1720;color:#fff;padding:16px;margin-top:18px}
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR: shows brand, search, and cart button. Replace brand text to change store name. -->
+  <div class="nav">
+    <div class="container nav-inner">
+      <a class="brand" href="#">NCC Store</a>
+
+      <!-- SEARCH: user can type to filter products (implemented in JS). -->
+      <input id="search" class="input" placeholder="Search products…" aria-label="Search" />
+
+      <!-- CART BUTTON: opens cart drawer. cartCount badge updates via JS. -->
+      <div style="display:flex;gap:8px">
+        <button id="cartBtn" class="icon-btn" aria-label="Open cart">🛒 <span id="cartCount" class="badge">0</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HERO: short description / USP -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <div>
+        <h1>NCC Store — Uniforms & Accessories</h1>
+        <p class="muted">A simple offline-friendly store template. Images use local paths so you can replace them easily.</p>
+        <div style="margin-top:10px;display:flex;gap:10px">
+          <a class="btn" href="#catalog">Browse items</a>
+          <button class="btn secondary" onclick="scrollToEl('checkout')">Checkout</button>
+        </div>
+      </div>
+      <!-- HERO IMAGE: replace or keep as is. -->
+      <img src="https://via.placeholder.com/800x500?text=NCC+Store" alt="NCC Store hero" />
+    </div>
+  </section>
+
+  <!-- CATALOG: list of products rendered by JS into #grid. Toolbar includes sort control and shows count. -->
+  <div id="catalog" class="container">
+    <div class="toolbar">
+      <div class="muted">Showing <span id="count">0</span> items</div>
+      <div style="display:flex;gap:8px">
+        <select id="categoryFilter" class="field">
+          <option value="all">All categories</option>
+        </select>
+        <select id="sort" class="field">
+          <option value="pop">Popular</option>
+          <option value="low">Price: Low → High</option>
+          <option value="high">Price: High → Low</option>
+          <option value="az">Name: A → Z</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- GRID: product cards inserted here by renderGrid() in JS -->
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <!-- BACKDROP & DRAWER: cart UI. Drawer slides from right. -->
+  <div id="backdrop" class="backdrop" onclick="toggleCart(false)"></div>
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <header>
+      <strong>Your cart</strong>
+      <button class="btn" onclick="toggleCart(false)">Close</button>
+    </header>
+
+    <!-- CART LIST: items added to cart are rendered here by syncCartUI() -->
+    <div id="cartList" class="content"></div>
+
+    <!-- CART FOOTER: shows totals and checkout button -->
+    <footer>
+      <div class="row" style="margin-bottom:8px"><div>Subtotal</div><div id="subTotal">₹0</div></div>
+      <div class="row"><div>Shipping</div><div class="muted">Free</div></div>
+      <div class="row" style="margin-top:8px;font-weight:800"><div>Total</div><div id="grandTotal">₹0</div></div>
+      <div style="margin-top:10px"><button class="btn" style="width:100%" onclick="openCheckout()">Checkout</button></div>
+    </footer>
+  </aside>
+
+  <!-- CHECKOUT FORM: collects customer details. Submitting triggers placeOrder(). -->
+  <div class="container">
+    <div id="checkout" class="checkout">
+      <h3 style="margin:0 0 8px">Checkout</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label class="muted">Full name</label>
+          <input id="name" class="field" placeholder="Your full name" />
+        </div>
+        <div>
+          <label class="muted">Email</label>
+          <input id="email" class="field" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label class="muted">Phone</label>
+          <input id="phone" class="field" placeholder="99999 99999" />
+        </div>
+        <div>
+          <label class="muted">Payment method</label>
+          <select id="pay" class="field">
+            <option value="COD">Cash on Delivery (COD)</option>
+            <option value="UPI">UPI (simulate)</option>
+            <option value="CARD">Card (simulate)</option>
+          </select>
+        </div>
+        <div style="grid-column:1/-1">
+          <label class="muted">Address</label>
+          <textarea id="address" class="field" rows="3" placeholder="House, Street, City, PIN"></textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+        <button class="btn" onclick="placeOrder()">Place order</button>
+        <div class="muted">This is a demo checkout. No real money changes hands.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: used for quick product view, UPI flow, and order confirmation. -->
+  <div id="modal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <header style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eef3f4;padding:10px 14px">
+        <strong id="modalTitle">Modal</strong>
+        <button class="btn" onclick="closeModal()">Close</button>
+      </header>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="site">
+    <div class="container">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>NCC Store</strong><div class="muted">Uniforms & accessories template</div></div>
+        <small class="muted">© 2025 NCC Store</small>
+      </div>
+    </div>
+  </footer>
+
+  <!-- TOAST: small transient notifications -->
+  <div id="toast" class="toast">Action completed</div>
+
+  <script>
+    /* ===================================================================
+       PRODUCTS DATA
+       -------------------------------------------------------------------
+       Replace the 'img' local path (images/<id>.jpg) with your real image
+       files. Each product's img tag will include an HTML comment with the
+       product name to make replacement simple.
+       =================================================================== */
+    const products = [
+      {id:'hackle', name:'Hackle', price:199, category:'Accessories', img:'images/hackle.jpg', desc:'Decorative hackle used on caps'},
+      {id:'pom_pom', name:'Pom Pom', price:99, category:'Accessories', img:'images/pom_pom.jpg', desc:'Pom pom for headgear'},
+      {id:'cap_badge', name:'Cap Badge', price:249, category:'Accessories', img:'images/cap_badge.jpg', desc:'Official cap badge'},
+      {id:'barret_green', name:'Barret (Green)', price:399, category:'Headgear', img:'images/barret_green.jpg', desc:'Green barret for parade'},
+      {id:'lineyard', name:'LineYard', price:299, category:'Accessories', img:'images/lineyard.jpg', desc:'Line yard for drill'},
+      {id:'title_shoulder', name:'Title shoulder', price:149, category:'Accessories', img:'images/title_shoulder.jpg', desc:'Shoulder title'},
+      {id:'name_plate', name:'Name Plate', price:199, category:'Accessories', img:'images/name_plate.jpg', desc:'Engraved name plate'},
+      {id:'enrollment_badge', name:'Enrollment Badge', price:299, category:'Accessories', img:'images/enrollment_badge.jpg', desc:'Enrollment badge'},
+      {id:'ncc_ranks', name:'NCC Ranks', price:349, category:'Accessories', img:'images/ncc_ranks.jpg', desc:'Set of rank badges'},
+      {id:'leather_belt', name:'Leather Belt (with Buckle)', price:799, category:'Accessories', img:'images/leather_belt.jpg', desc:'Leather belt with buckle'},
+
+      /* Socks variants */
+      {id:'socks_black', name:'Socks (Black)', price:99, category:'Apparel', img:'images/socks_black.jpg', desc:'Black socks'},
+      {id:'socks_white', name:'Socks (White)', price:99, category:'Apparel', img:'images/socks_white.jpg', desc:'White socks'},
+
+      /* Uniform variants */
+      {id:'uniform_army', name:'Uniform (Army)', price:1999, category:'Uniform', img:'images/uniform_army.jpg', desc:'Army uniform set'},
+      {id:'uniform_navy', name:'Uniform (Navy)', price:1999, category:'Uniform', img:'images/uniform_navy.jpg', desc:'Navy uniform set'},
+      {id:'uniform_air', name:'Uniform (Air)', price:1999, category:'Uniform', img:'images/uniform_air.jpg', desc:'Air Force uniform set'},
+
+      {id:'dms_shoes', name:'DMS Shoes', price:1799, category:'Footwear', img:'images/dms_shoes.jpg', desc:'DMS parade shoes'},
+      {id:'shoes_op', name:'Shoes OP (cut shoe)', price:1299, category:'Footwear', img:'images/shoes_op.jpg', desc:'Operational cut shoes'},
+      {id:'sport_shoe', name:'Sport Shoe', price:1499, category:'Footwear', img:'images/sport_shoe.jpg', desc:'Sport shoes for PT'},
+
+      {id:'ncc_track_suit', name:'NCC Track Suit', price:2499, category:'Apparel', img:'images/ncc_track_suit.jpg', desc:'Track suit'},
+
+      /* T‑shirt variants */
+      {id:'ncc_tshirt_white', name:'NCC T-shirt (White)', price:399, category:'Apparel', img:'images/ncc_tshirt_white.jpg', desc:'White NCC T-shirt'},
+      {id:'ncc_tshirt_blue', name:'NCC T-shirt (Blue)', price:399, category:'Apparel', img:'images/ncc_tshirt_blue.jpg', desc:'Blue NCC T-shirt'},
+
+      {id:'kamar_bandh_jhallar', name:'Kamar Bandh Jhallar', price:499, category:'Accessories', img:'images/kamar_bandh_jhallar.jpg', desc:'Traditional kamar bandh jhallar'},
+      {id:'scarf_set', name:'Scarf Set', price:299, category:'Accessories', img:'images/scarf_set.jpg', desc:'Scarf set for ceremonies'},
+      {id:'spades', name:'Spades', price:159, category:'Tools', img:'images/spades.jpg', desc:'Spades for groundwork'},
+      {id:'gloves', name:'Gloves', price:199, category:'Accessories', img:'images/gloves.jpg', desc:'Duty gloves'},
+
+      /* Jersey variants */
+      {id:'jersey_army', name:'Jersey (Army)', price:699, category:'Apparel', img:'images/jersey_army.jpg', desc:'Army jersey'},
+      {id:'jersey_navy', name:'Jersey (Navy)', price:699, category:'Apparel', img:'images/jersey_navy.jpg', desc:'Navy jersey'},
+      {id:'jersey_air', name:'Jersey (Air)', price:699, category:'Apparel', img:'images/jersey_air.jpg', desc:'Air jersey'}
+    ];
+
+    /* ===================================================================
+       STATE & STORAGE
+       -------------------------------------------------------------------
+       state.items holds cart items in the format {id, qty}
+       We persist cart to localStorage so cart survives reloads.
+       =================================================================== */
+    const state = {
+      items: JSON.parse(localStorage.getItem('cart') || '[]'),
+      search: '',
+      category: 'all',
+      sort: 'pop'
+    };
+
+    /* ===================================================================
+       UTILITY HELPERS
+       -------------------------------------------------------------------
+       Small helper functions used across the script.
+       =================================================================== */
+    const formatINR = v => '₹' + Number(v).toLocaleString('en-IN');
+    const saveCart = () => localStorage.setItem('cart', JSON.stringify(state.items));
+    const findProduct = id => products.find(p => p.id === id);
+
+    /* toast(msg)
+       - Show a transient message to the user. */
+    function toast(msg){
+      const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'), 1400);
+    }
+
+    /* ===================================================================
+       FILTERS & RENDERING
+       -------------------------------------------------------------------
+       renderFilters() - writes the category filter options
+       renderGrid() - renders visible product cards into the grid
+       applyFilters() - returns filtered & sorted products
+       =================================================================== */
+    function uniqueCategories(){ return ['all', ...new Set(products.map(p => p.category))]; }
+
+    function renderFilters(){
+      const sel = document.getElementById('categoryFilter');
+      sel.innerHTML = uniqueCategories().map(c => `
+        <option value="${c}">${c}</option>
+      `).join('');
+      sel.value = state.category;
+    }
+
+    function applyFilters(list){
+      let out = list.filter(p => (p.name + ' ' + p.category).toLowerCase().includes(state.search));
+      if(state.category !== 'all') out = out.filter(p => p.category === state.category);
+      if(state.sort === 'low') out.sort((a,b)=>a.price-b.price);
+      else if(state.sort === 'high') out.sort((a,b)=>b.price-a.price);
+      else if(state.sort === 'az') out.sort((a,b)=>a.name.localeCompare(b.name));
+      return out;
+    }
+
+    function renderGrid(){
+      const grid = document.getElementById('grid');
+      const filtered = applyFilters(products.slice());
+      document.getElementById('count').textContent = filtered.length;
+
+      // Build HTML for each card. Each PRODUCT IMAGE has an HTML comment above
+      // it with the product name so you can replace the src easily.
+      grid.innerHTML = filtered.map(p => `
+        <article class="card">
+          <!-- Image: ${p.name} -->
+          <img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.onerror=null;this.src='https://via.placeholder.com/800?text=${encodeURIComponent(p.name)}'" />
+          <div class="card-body">
+            <div class="row"><div class="title">${p.name}</div><div class="price">${formatINR(p.price)}</div></div>
+            <div class="muted">${p.category}</div>
+            <p class="muted" style="margin:8px 0">${p.desc}</p>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <button class="btn" onclick="addToCart('${p.id}')">Add to cart</button>
+              <button class="btn secondary" onclick="quickView('${p.id}')">View</button>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    /* ===================================================================
+       CART MANAGEMENT
+       -------------------------------------------------------------------
+       addToCart(id) - add an item or increase qty
+       incQty/decQty/setQty/removeItem - adjust quantities
+       syncCartUI() - re-render cart drawer and totals
+       toggleCart(show) - open/close cart drawer
+       =================================================================== */
+    function cartCount(){ return state.items.reduce((n,i)=>n+i.qty,0); }
+
+    function syncCartUI(){
+      document.getElementById('cartCount').textContent = cartCount();
+      const list = document.getElementById('cartList');
+
+      if(state.items.length === 0){
+        list.innerHTML = '<p class="muted">Your cart is empty.</p>';
+      } else {
+        list.innerHTML = state.items.map(it => {
+          const p = findProduct(it.id);
+          return `
+            <div class="cart-item">
+              <!-- Image: ${p.name} -->
+              <img src="${p.img}" alt="${p.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/150?text=${encodeURIComponent(p.name)}'" />
+              <div>
+                <div style="font-weight:700">${p.name}</div>
+                <div class="muted">${formatINR(p.price)} each</div>
+                <div class="qty" style="margin-top:6px">
+                  <button onclick="decQty('${it.id}')">−</button>
+                  <input value="${it.qty}" inputmode="numeric" onchange="setQty('${it.id}', this.value)" />
+                  <button onclick="incQty('${it.id}')">+</button>
+                </div>
+              </div>
+              <div style="text-align:right">
+                <div><strong>${formatINR(p.price * it.qty)}</strong></div>
+                <button class="btn" style="background:#ef4444;margin-top:8px" onclick="removeItem('${it.id}')">Remove</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      const sub = state.items.reduce((s,it)=> s + findProduct(it.id).price * it.qty, 0);
+      document.getElementById('subTotal').textContent = formatINR(sub);
+      document.getElementById('grandTotal').textContent = formatINR(sub);
+      saveCart();
+    }
+
+    function addToCart(id){
+      // Add item to cart: increment if exists, otherwise push new item.
+      const item = state.items.find(i=>i.id===id);
+      if(item) item.qty++; else state.items.push({id, qty:1});
+      syncCartUI(); toast('Added to cart');
+    }
+    function incQty(id){ const it = state.items.find(i=>i.id===id); if(it){ it.qty++; syncCartUI(); } }
+    function decQty(id){ const it = state.items.find(i=>i.id===id); if(it){ it.qty = Math.max(1, it.qty - 1); syncCartUI(); } }
+    function setQty(id, val){ const n = Math.max(1, parseInt(val) || 1); const it = state.items.find(i=>i.id===id); if(it){ it.qty = n; syncCartUI(); } }
+    function removeItem(id){ state.items = state.items.filter(i=>i.id!==id); syncCartUI(); }
+
+    function toggleCart(show){ const d = document.getElementById('drawer'); const b = document.getElementById('backdrop'); if(show){ d.classList.add('open'); b.style.display='block'; } else { d.classList.remove('open'); b.style.display='none'; } }
+
+    /* ===================================================================
+       QUICK VIEW & MODAL UTILITIES
+       -------------------------------------------------------------------
+       quickView(id) - show product details in modal
+       showModal(title, html) - generic modal open
+       closeModal() - close modal
+       =================================================================== */
+    function quickView(id){
+      const p = findProduct(id);
+      const html = `
+        <!-- Image: ${p.name} -->
+        <img src="${p.img}" alt="${p.name}" onerror="this.onerror=null;this.src='https://via.placeholder.com/400?text=${encodeURIComponent(p.name)}'" style="border-radius:8px;object-fit:cover" />
+        <div>
+          <h3 style="margin:0">${p.name}</h3>
+          <div class="muted" style="margin:6px 0">${p.category}</div>
+          <div style="font-size:20px;font-weight:800">${formatINR(p.price)}</div>
+          <p class="muted">${p.desc}</p>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn" onclick="addToCart('${p.id}')">Add to cart</button>
+            <button class="btn secondary" onclick="closeModal(); toggleCart(true)">Go to cart</button>
+          </div>
+        </div>
+      `;
+      showModal(p.name, html);
+    }
+
+    function showModal(title, html){ document.getElementById('modalTitle').textContent = title; document.getElementById('modalBody').innerHTML = html; document.getElementById('modal').classList.add('show'); }
+    function closeModal(){ document.getElementById('modal').classList.remove('show'); }
+
+    /* ===================================================================
+       CHECKOUT & PAYMENT FLOW
+       -------------------------------------------------------------------
+       openCheckout() - shows checkout form
+       placeOrder() - validates input and routes payment
+       showUPIPayment(order) - displays UPI instructions and confirmation
+       confirmUPI(order, txn) - finalizes order after TXN id provided
+       finalizeOrder(order) - shows confirmation, downloads receipt, clears cart
+       =================================================================== */
+    function openCheckout(){ toggleCart(false); if(state.items.length === 0){ toast('Your cart is empty'); return; } document.getElementById('checkout').style.display = 'block'; scrollToEl('checkout'); }
+
+    function placeOrder(){
+      // Validate cart & inputs
+      if(state.items.length === 0){ toast('Cart is empty'); return; }
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const address = document.getElementById('address').value.trim();
+      const pay = document.getElementById('pay').value;
+      if(!name || !email || !phone || !address){ toast('Please fill all details'); return; }
+
+      // Build order object
+      const order = {
+        id: 'NCC' + Math.floor(100000 + Math.random()*900000),
+        at: new Date().toISOString(),
+        items: state.items.map(it=>({id:it.id, name:findProduct(it.id).name, price:findProduct(it.id).price, qty:it.qty})),
+        total: state.items.reduce((s,it)=> s + findProduct(it.id).price*it.qty,0),
+        customer: { name, email, phone, address },
+        payment: { method: pay }
+      };
+
+      // Route based on selected payment method
+      if(pay === 'UPI'){
+        // Start simulated UPI flow: show UPI instructions and confirm txn id
+        showUPIPayment(order);
+      } else {
+        // COD or simulated card: finalize immediately
+        finalizeOrder(order);
+      }
+    }
+
+    function showUPIPayment(order){
+      // Simulated UPI details. Replace with real UPI integration later.
+      const upiId = 'nccstore@upi'; // change to your real UPI ID
+      const amount = order.total;
+      const html = `
+        <div style="padding:10px">
+          <h3 style="margin:0 0 8px">UPI Payment</h3>
+          <p class="muted">Pay using any UPI app to the UPI ID below, then enter the transaction ID (UTR) to confirm.</p>
+          <div style="display:flex;gap:12px;align-items:center;margin-top:10px">
+            <!-- UPI QR placeholder (replace with real QR image if you have one) -->
+            <div style="width:140px;height:140px;border-radius:10px;border:1px solid #eef3f4;display:flex;align-items:center;justify-content:center">QR</div>
+            <div>
+              <div style="font-weight:800">UPI ID</div>
+              <div class="muted">${upiId}</div>
+              <div style="font-weight:800;margin-top:8px">Amount: ${formatINR(amount)}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px">
+            <label class="muted">Enter UPI transaction ID (optional but recommended)</label>
+            <input id="upiTxn" class="field" placeholder="e.g. TXN12345" />
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn" onclick="confirmUPI('${order.id}')">I have paid (confirm)</button>
+            <button class="btn secondary" onclick="closeModal()">Cancel</button>
+          </div>
+        </div>
+      `;
+      // Temporarily store the order in window so confirmUPI can access it
+      window._pendingOrder = order; // comment: temporary holder for UPI flow
+      showModal('UPI Payment', html);
+    }
+
+    function confirmUPI(orderId){
+      // Grab txn id and pending order
+      const txn = document.getElementById('upiTxn')?.value?.trim() || '';
+      const order = window._pendingOrder;
+      if(!order || order.id !== orderId){ toast('No pending UPI order'); return; }
+      // Attach transaction id (if any) and mark payment method
+      order.payment.method = 'UPI';
+      order.payment.txn = txn;
+      // Finalize order now
+      finalizeOrder(order);
+      // cleanup pending order
+      delete window._pendingOrder;
+    }
+
+    function finalizeOrder(order){
+      // Show order confirmation in modal and download JSON receipt
+      const html = `
+        <div style="padding:12px">
+          <h3 style="margin:0 0 6px">Thank you, ${order.customer.name}!</h3>
+          <div class="muted">Your order <strong>${order.id}</strong> was placed on ${new Date(order.at).toLocaleString()}.</div>
+          <hr style="margin:10px 0;border:0;border-top:1px solid #f1f4f5" />
+          ${order.items.map(i=>`<div class='row' style='margin-bottom:6px'><div>${i.name} × ${i.qty}</div><div>${formatINR(i.price * i.qty)}</div></div>`).join('')}
+          <div class='row' style='margin-top:8px;font-weight:800'><div>Total</div><div>${formatINR(order.total)}</div></div>
+          <div style='margin-top:10px' class='muted'>A receipt will be downloaded for your records.</div>
+          <div style='margin-top:12px'><button class='btn' onclick='closeModal()'>Close</button></div>
+        </div>
+      `;
+      showModal('Order confirmed', html);
+
+      // Download JSON receipt automatically
+      const blob = new Blob([JSON.stringify(order, null, 2)], {type:'application/json'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${order.id}.json`; document.body.appendChild(a); a.click(); a.remove();
+
+      // Clear cart and UI
+      state.items = []; saveCart(); syncCartUI();
+      document.getElementById('checkout').style.display = 'none';
+      document.getElementById('name').value = '';
+      document.getElementById('email').value = '';
+      document.getElementById('phone').value = '';
+      document.getElementById('address').value = '';
+    }
+
+    /* ===================================================================
+       EVENT BINDINGS & INIT
+       -------------------------------------------------------------------
+       Wire UI controls to state and render initial UI.
+       =================================================================== */
+    document.getElementById('cartBtn').addEventListener('click', ()=>toggleCart(true));
+    document.getElementById('search').addEventListener('input', e => { state.search = e.target.value.toLowerCase(); renderGrid(); });
+    document.getElementById('categoryFilter').addEventListener('change', e => { state.category = e.target.value; renderGrid(); });
+    document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; renderGrid(); });
+
+    function scrollToEl(id){ document.getElementById(id)?.scrollIntoView({behavior:'smooth'}); }
+
+    function init(){ renderFilters(); renderGrid(); syncCartUI(); }
+    init();
+  </script>
+
+</body>
+</html>
